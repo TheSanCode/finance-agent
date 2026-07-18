@@ -87,6 +87,41 @@ Notes:
 - Calculations are deterministic and use minor units with bigint semantics.
 - No Gemini model is involved in financial calculations.
 
+Statement import preview endpoint:
+
+POST /v1/credit-cards/:accountId/statement-import-previews
+
+- Multipart field: `statement`
+- Supported type: CSV (`text/csv`)
+- Max size: configured by `STATEMENT_MAX_FILE_SIZE_BYTES`
+- Creates preview only with status `PENDING_APPROVAL`
+- Does not persist final transactions
+
+Get statement preview endpoint:
+
+GET /v1/credit-cards/:accountId/statement-import-previews/:previewId
+
+Approve statement import endpoint:
+
+POST /v1/credit-cards/:accountId/statement-import-previews/:previewId/approve
+
+Body:
+
+```json
+{
+  "idempotencyKey": "approval-unique-key",
+  "approvedFingerprints": ["optional-fingerprint-1"]
+}
+```
+
+Approval behavior:
+
+- Requires idempotency key.
+- Imports only approved eligible rows.
+- Records audit trail with actor, timestamp, and action.
+- Deterministic duplicate detection by stable fingerprint.
+- No Gemini is used for arithmetic, totals, duplicate detection, date parsing, or money conversion.
+
 ## Cloud Run Baseline
 
 - Containerized Node.js API with PORT support.
