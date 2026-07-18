@@ -148,4 +148,43 @@ describe("suggest transaction category use case", () => {
     expect(result.deterministicResult?.category).toBe("GROCERIES");
     expect(result.suggestion).toBeNull();
   });
+
+  it("does not persist suggestion as confirmed category", async () => {
+    const transactionRepository = new InMemoryTransactionRepository([
+      {
+        transactionId: "txn-4",
+        accountId: "card-1",
+        ownerUserId: "user-1",
+        description: "Unknown merchant",
+        amountMinor: 3100n,
+        direction: "DEBIT"
+      }
+    ]);
+
+    const useCase = new SuggestTransactionCategoryUseCase({
+      transactionRepository,
+      categorizationRuleRepository: new InMemoryCategorizationRuleRepository([]),
+      categorySuggestionProvider: {
+        suggest: async () => ({
+          category: "UNCATEGORIZED",
+          confidence: 0.3,
+          rationale: "mock"
+        })
+      },
+      idempotencyRepository: new InMemoryCategorizationIdempotencyRepository(),
+      auditTrailRepository: new InMemoryAuditTrailRepository(),
+      now: () => new Date("2026-07-18T00:23:00.000Z")
+    });
+
+    const result = await useCase.execute({
+      transactionId: "txn-4",
+      authenticatedUserId: "user-1",
+      idempotencyKey: "suggest-idem-0004"
+    });
+
+    const transactionState = transactionRepository.getTransactionState("txn-4");
+    expect(result.suggestion).toBeTruthy();
+    expect(transactionState?.confirmedCategory).toBeUndefined();
+    expect(transactionState?.categorySource).toBeUndefined();
+  });
 });

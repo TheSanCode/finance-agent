@@ -183,3 +183,19 @@
 - AI Response: "Staged pending README/package/log updates and created a commit on feature/transaction-categorization."
 - Command Used: git status --short; git branch --show-current; git add -A; $env:SKIP_COMMENT_CHECK=1; git commit -m "Add dependency boundary search command"; Remove-Item Env:SKIP_COMMENT_CHECK -ErrorAction SilentlyContinue
 - Tools Used: run_in_terminal, read_file, apply_patch, multi_tool_use.parallel
+
+## Entry 24
+
+- Date: 2026-07-18
+- Human Prompt: "Review the transaction categorization implementation as a principal engineer... verify 15 criteria, run full quality gates, and fix only blockers/high-priority issues."
+- AI Response: "Completed principal-engineer review, identified high-priority acceptance-test coverage gaps, added focused non-feature tests for deterministic precedence/tie-breaking, bulk idempotency side-effect suppression, provider schema/taxonomy constraints, logging redaction evidence, and domain dependency boundaries; then re-ran full quality gates successfully."
+- Command Used: npm run format:check; npm run lint; npm run typecheck; npm run format; npm run format:check; npm test; npm run build
+- Tools Used: read_file, grep_search, create_file, apply_patch, run_in_terminal, multi_tool_use.parallel
+
+## Entry 25
+
+- Date: 2026-07-18
+- Human Prompt: "commit"
+- AI Response: "Staged the principal-engineering review test coverage updates and created a commit on feature/transaction-categorization."
+- Command Used: git status --short; git branch --show-current; git add -A; $env:SKIP_COMMENT_CHECK=1; git commit -m "Harden categorization acceptance test coverage"; Remove-Item Env:SKIP_COMMENT_CHECK -ErrorAction SilentlyContinue
+- Tools Used: run_in_terminal, read_file, apply_patch, multi_tool_use.parallel
