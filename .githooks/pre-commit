@@ -1,0 +1,68 @@
+#!/usr/bin/env sh
+
+# Block commits when code changes are staged without any staged comment updates.
+set -eu
+
+if [ "${SKIP_COMMENT_CHECK:-}" = "1" ]; then
+  exit 0
+fi
+
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR)
+
+if [ -z "$STAGED_FILES" ]; then
+  exit 0
+fi
+
+NEEDS_COMMENT_UPDATE=""
+
+for FILE in $STAGED_FILES; do
+  case "$FILE" in
+    *.py|*.sh|*.js|*.jsx|*.ts|*.tsx|*.java|*.go|*.rs|*.c|*.h|*.cpp|*.hpp|*.cs)
+      ;;
+    *)
+      continue
+      ;;
+  esac
+
+  PATCH=$(git diff --cached -U0 -- "$FILE")
+
+  COMMENT_CHANGES=$(printf "%s\n" "$PATCH" | awk '
+    /^\+\+\+|^---|^@@/ { next }
+    /^[+-]/ {
+      line = substr($0, 2)
+      gsub(/^[ \t]+/, "", line)
+      if (line ~ /^(#|\/\/|\/\*|\*|\*\/|--)/) {
+        comments++
+      }
+    }
+    END { print comments + 0 }
+  ')
+
+  CODE_CHANGES=$(printf "%s\n" "$PATCH" | awk '
+    /^\+\+\+|^---|^@@/ { next }
+    /^[+-]/ {
+      line = substr($0, 2)
+      gsub(/^[ \t]+/, "", line)
+      if (line == "") { next }
+      if (line ~ /^(#|\/\/|\/\*|\*|\*\/|--)/) { next }
+      code++
+    }
+    END { print code + 0 }
+  ')
+
+  if [ "$CODE_CHANGES" -gt 0 ] && [ "$COMMENT_CHANGES" -eq 0 ]; then
+    NEEDS_COMMENT_UPDATE="$NEEDS_COMMENT_UPDATE\n- $FILE"
+  fi
+done
+
+if [ -n "$NEEDS_COMMENT_UPDATE" ]; then
+  echo "Comment update check failed."
+  echo "Code changes were detected in these files without any staged comment updates:"
+  printf "%b\n" "$NEEDS_COMMENT_UPDATE"
+  echo
+  echo "Update comments/docs for changed logic, then stage again and commit."
+  echo "Temporary bypass: SKIP_COMMENT_CHECK=1 git commit ..."
+  exit 1
+fi
+
+exit 0
