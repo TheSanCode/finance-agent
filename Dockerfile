@@ -1,0 +1,26 @@
+FROM node:20-alpine AS build
+WORKDIR /app
+
+COPY package*.json ./
+COPY apps ./apps
+COPY packages ./packages
+COPY tests ./tests
+COPY tsconfig.json ./
+COPY vitest.config.ts ./
+COPY eslint.config.mjs ./
+COPY prettier.config.mjs ./
+
+RUN npm ci
+RUN npm run build
+
+FROM node:20-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+COPY --from=build /app/dist ./dist
+
+EXPOSE 8080
+CMD ["node", "dist/apps/api/src/index.js"]
