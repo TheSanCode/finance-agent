@@ -1,4 +1,5 @@
 import { type Money } from "../../domain/src/money.js";
+import { type CreditCardAccount } from "../../domain/src/credit-card-summary.js";
 
 export type ApprovalRequest = {
   readonly operation: "create-journal-entry";
@@ -18,4 +19,11 @@ export type LedgerEntryDraft = {
 
 export interface LedgerRepository {
   saveEntry(input: LedgerEntryDraft): Promise<{ id: string }>;
+}
+
+export interface CreditCardAccountReadRepository {
+  findByAccountIdForUser(input: {
+    accountId: string;
+    ownerUserId: string;
+  }): Promise<CreditCardAccount | null>;
 }

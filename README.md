@@ -59,6 +59,34 @@ Health endpoint:
 
 GET /health
 
+Credit card summary endpoint:
+
+GET /v1/credit-cards/:accountId/summary
+
+Required header:
+
+Authorization: Bearer <firebase-id-token>
+
+Response example:
+
+```json
+{
+  "accountId": "card-1",
+  "currency": "USD",
+  "creditLimitMinor": "100000",
+  "currentBalanceMinor": "25000",
+  "availableCreditMinor": "75000",
+  "utilizationBasisPoints": "2500"
+}
+```
+
+Notes:
+
+- This operation is read-only.
+- Users can access only their own account summary.
+- Calculations are deterministic and use minor units with bigint semantics.
+- No Gemini model is involved in financial calculations.
+
 ## Cloud Run Baseline
 
 - Containerized Node.js API with PORT support.
