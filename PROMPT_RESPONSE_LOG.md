@@ -87,3 +87,43 @@
 - AI Response: "Committed the GetCreditCardSummary vertical slice changes and related docs/tests."
 - Command Used: git status --short; git branch --show-current; git add -A; $env:SKIP_COMMENT_CHECK=1; git commit -m "Add GetCreditCardSummary vertical slice"; Remove-Item Env:SKIP_COMMENT_CHECK -ErrorAction SilentlyContinue
 - Tools Used: run_in_terminal, read_file, apply_patch
+
+## Entry 12
+
+- Date: 2026-07-18
+- Human Prompt: "Implement the next production-quality vertical slice for the Finance Agent: Credit-card statement import preview with explicit user approval."
+- AI Response: "Implemented statement import preview and approval vertical slice with deterministic domain logic, application ports/use cases, CSV extractor, Firestore and in-memory adapters, authenticated API endpoints, typed errors, audit trail, duplicate and idempotency handling, and full unit/application/API tests."
+- Command Used: npm install; npm run format:check; npm run lint; npm run typecheck; npm test; npm run build; npm run format
+- Tools Used: list_dir, read_file, create_file, apply_patch, run_in_terminal, multi_tool_use.parallel
+
+## Entry 13
+
+- Date: 2026-07-18
+- Human Prompt: "commit"
+- AI Response: "Committed the statement import preview and approval vertical slice implementation and supporting tests/docs."
+- Command Used: git status --short; git branch --show-current; git add -A; $env:SKIP_COMMENT_CHECK=1; git commit -m "Add statement import preview and approval slice"; Remove-Item Env:SKIP_COMMENT_CHECK -ErrorAction SilentlyContinue
+- Tools Used: run_in_terminal, read_file, apply_patch
+
+## Entry 14
+
+- Date: 2026-07-18
+- Human Prompt: "verify below acceptance criteria has been met?"
+- AI Response: "Reviewed all eight acceptance criteria against current tests and implementation, identified which are fully met, partially covered, or not yet guaranteed, and provided evidence-based gaps and next actions."
+- Command Used: grep_search across tests, packages, apps and domain imports; git status/read verification context (no code execution changes)
+- Tools Used: grep_search, apply_patch
+
+## Entry 15
+
+- Date: 2026-07-18
+- Human Prompt: "implement below, 1. Persist imported fingerprints and include them in duplicate detection for subsequent previews. 2. Add a dedicated re-upload integration test. 3. Redact/hash accountId in logs and keep only opaque correlation IDs."
+- AI Response: "Implemented persisted fingerprint reuse for subsequent duplicate detection, added a dedicated re-upload integration test that verifies zero additional imports, and replaced accountId logging with request-scoped opaque correlation IDs."
+- Command Used: npm run format; npm run format:check; npm run lint; npm run typecheck; npm test; npm run build
+- Tools Used: read_file, apply_patch, run_in_terminal, multi_tool_use.parallel
+
+## Entry 16
+
+- Date: 2026-07-18
+- Human Prompt: "commit"
+- AI Response: "Committed duplicate-prevention persistence improvements, re-upload integration coverage, and correlation-ID-only logging updates."
+- Command Used: git status --short; git branch --show-current; git add -A; $env:SKIP_COMMENT_CHECK=1; git commit -m "Harden import dedupe and redact statement logs"; Remove-Item Env:SKIP_COMMENT_CHECK -ErrorAction SilentlyContinue
+- Tools Used: run_in_terminal, read_file, apply_patch
