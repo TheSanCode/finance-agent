@@ -19,7 +19,8 @@ import { createLogger } from "../packages/shared/src/logger.js";
 
 describe("statement import API", () => {
   const previewRepository = new InMemoryStatementImportPreviewRepository();
-  const importedRepository = new InMemoryImportedTransactionRepository();
+  const postedFingerprintRepository = new InMemoryPostedTransactionFingerprintReadRepository({});
+  const importedRepository = new InMemoryImportedTransactionRepository(postedFingerprintRepository);
   const auditTrailRepository = new InMemoryAuditTrailRepository();
   const accountRepository = new InMemoryCreditCardAccountReadRepository([
     {
@@ -44,10 +45,13 @@ describe("statement import API", () => {
         accountReadRepository: accountRepository,
         statementExtractor: new CsvStatementExtractor(),
         previewRepository,
-        postedFingerprintRepository: new InMemoryPostedTransactionFingerprintReadRepository({}),
+        postedFingerprintRepository,
         auditTrailRepository,
         maxFileSizeBytes: 2000000,
-        createId: () => "preview-api-1",
+        createId: (() => {
+          let previewSequence = 1;
+          return () => `preview-api-${previewSequence++}`;
+        })(),
         now: () => new Date("2026-07-18T00:00:00.000Z")
       }),
       getStatementImportPreviewUseCase: new GetStatementImportPreviewUseCase(previewRepository),
@@ -100,6 +104,39 @@ describe("statement import API", () => {
     expect(approveFirst.body.importedCount).toBe(2);
     expect(approveSecond.status).toBe(200);
     expect(approveSecond.body.importedCount).toBe(2);
+  });
+
+  it("re-uploading same statement marks rows as duplicates and imports nothing new", async () => {
+    const csv = [
+      "date,description,amountMinor,currency,statementTotalMinor",
+      "2026-07-01,Coffee Shop,455,USD,1510",
+      "2026-07-02,Book Store,1055,USD,1510"
+    ].join("\n");
+
+    const secondPreview = await request(app)
+      .post("/v1/credit-cards/card-1/statement-import-previews")
+      .set("authorization", "Bearer owner-token")
+      .attach("statement", Buffer.from(csv, "utf-8"), {
+        filename: "statement.csv",
+        contentType: "text/csv"
+      });
+
+    expect(secondPreview.status).toBe(201);
+    expect(secondPreview.body.previewId).toBe("preview-api-2");
+    expect(secondPreview.body.duplicateCandidates.length).toBeGreaterThanOrEqual(2);
+    expect(
+      secondPreview.body.duplicateCandidates.every(
+        (candidate: { reason: string }) => candidate.reason === "already_posted"
+      )
+    ).toBe(true);
+
+    const approveReupload = await request(app)
+      .post("/v1/credit-cards/card-1/statement-import-previews/preview-api-2/approve")
+      .set("authorization", "Bearer owner-token")
+      .send({ idempotencyKey: "api-idem-0002" });
+
+    expect(approveReupload.status).toBe(200);
+    expect(approveReupload.body.importedCount).toBe(0);
   });
 
   it("returns 404 for non-owner preview access", async () => {

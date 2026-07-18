@@ -1,7 +1,12 @@
 import { type ImportedTransactionRepository } from "../../application/src/ports.js";
 import { type NormalizedStatementTransaction } from "../../domain/src/statement-import.js";
+import { type InMemoryPostedTransactionFingerprintReadRepository } from "./in-memory-posted-transaction-fingerprint-repository.js";
 
 export class InMemoryImportedTransactionRepository implements ImportedTransactionRepository {
+  constructor(
+    private readonly postedFingerprintRepository?: InMemoryPostedTransactionFingerprintReadRepository
+  ) {}
+
   imported: Array<{
     previewId: string;
     accountId: string;
@@ -24,6 +29,11 @@ export class InMemoryImportedTransactionRepository implements ImportedTransactio
       importedAt: input.importedAt,
       count: input.rows.length
     });
+
+    this.postedFingerprintRepository?.addFingerprints(
+      input.accountId,
+      input.rows.map((row) => row.fingerprint)
+    );
 
     return { importedCount: input.rows.length };
   }

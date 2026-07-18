@@ -1,5 +1,6 @@
 import express, { type Express } from "express";
 import multer from "multer";
+import { randomUUID } from "node:crypto";
 import { ZodError } from "zod";
 import { z } from "zod";
 
@@ -87,10 +88,15 @@ export const createApp = (dependencies: AppDependencies): Express => {
 
   app.use(express.json());
 
-  app.use((req, _res, next) => {
+  app.use((req, res, next) => {
+    const requestId = randomUUID();
+    res.locals.requestId = requestId;
+    res.setHeader("x-correlation-id", requestId);
+
     logger.info("request.received", {
+      requestId,
       method: req.method,
-      path: req.path
+      endpoint: "api"
     });
     next();
   });
@@ -101,6 +107,7 @@ export const createApp = (dependencies: AppDependencies): Express => {
 
   app.get("/v1/credit-cards/:accountId/summary", async (req, res, next) => {
     try {
+      const requestId = String(res.locals.requestId ?? "unknown");
       const token = parseBearerToken(req.header("authorization"));
       const authUser = await dependencies.authService.verifyBearerToken(token);
       const params = routeParamsSchema.parse(req.params);
@@ -111,8 +118,7 @@ export const createApp = (dependencies: AppDependencies): Express => {
       });
 
       logger.info("credit_card_summary.resolved", {
-        accountId: summary.accountId,
-        actorId: authUser.uid
+        requestId
       });
 
       res.status(200).json(summary);
@@ -126,6 +132,7 @@ export const createApp = (dependencies: AppDependencies): Express => {
     upload.single("statement"),
     async (req, res, next) => {
       try {
+        const requestId = String(res.locals.requestId ?? "unknown");
         const token = parseBearerToken(req.header("authorization"));
         const authUser = await dependencies.authService.verifyBearerToken(token);
         const params = routeParamsSchema.parse(req.params);
@@ -146,9 +153,9 @@ export const createApp = (dependencies: AppDependencies): Express => {
         });
 
         logger.info("statement_import.preview_created", {
+          requestId,
           previewId: preview.previewId,
-          actorId: authUser.uid,
-          accountId: params.accountId
+          correlationId: preview.previewId
         });
 
         res.status(201).json(toResponsePreview(preview));
@@ -162,6 +169,7 @@ export const createApp = (dependencies: AppDependencies): Express => {
     "/v1/credit-cards/:accountId/statement-import-previews/:previewId",
     async (req, res, next) => {
       try {
+        const requestId = String(res.locals.requestId ?? "unknown");
         const token = parseBearerToken(req.header("authorization"));
         const authUser = await dependencies.authService.verifyBearerToken(token);
         const params = previewParamsSchema.parse(req.params);
@@ -173,9 +181,9 @@ export const createApp = (dependencies: AppDependencies): Express => {
         });
 
         logger.info("statement_import.preview_fetched", {
+          requestId,
           previewId: params.previewId,
-          actorId: authUser.uid,
-          accountId: params.accountId
+          correlationId: params.previewId
         });
 
         res.status(200).json(toResponsePreview(preview));
@@ -189,6 +197,7 @@ export const createApp = (dependencies: AppDependencies): Express => {
     "/v1/credit-cards/:accountId/statement-import-previews/:previewId/approve",
     async (req, res, next) => {
       try {
+        const requestId = String(res.locals.requestId ?? "unknown");
         const token = parseBearerToken(req.header("authorization"));
         const authUser = await dependencies.authService.verifyBearerToken(token);
         const params = previewParamsSchema.parse(req.params);
@@ -203,9 +212,9 @@ export const createApp = (dependencies: AppDependencies): Express => {
         });
 
         logger.info("statement_import.approved", {
+          requestId,
           previewId: params.previewId,
-          actorId: authUser.uid,
-          accountId: params.accountId,
+          correlationId: params.previewId,
           importedCount: result.importedCount
         });
 
@@ -223,8 +232,10 @@ export const createApp = (dependencies: AppDependencies): Express => {
   app.use(
     (error: unknown, _req: express.Request, res: express.Response, next: express.NextFunction) => {
       void next;
+      const requestId = String(res.locals.requestId ?? "unknown");
       if (error instanceof ZodError) {
         logger.warn("request.validation_failed", {
+          requestId,
           issues: error.issues
         });
         res.status(400).json({ error: "validation_error", details: error.issues });
@@ -236,6 +247,7 @@ export const createApp = (dependencies: AppDependencies): Express => {
           "Statement file exceeds configured maximum size"
         );
         logger.warn("request.application_error", {
+          requestId,
           code: mapped.code,
           message: mapped.message
         });
@@ -262,6 +274,7 @@ export const createApp = (dependencies: AppDependencies): Express => {
                         : 500;
 
         logger.warn("request.application_error", {
+          requestId,
           code: error.code,
           message: error.message
         });
@@ -271,6 +284,7 @@ export const createApp = (dependencies: AppDependencies): Express => {
       }
 
       logger.error("request.unhandled_error", {
+        requestId,
         error: error instanceof Error ? error.message : "unknown"
       });
       res.status(500).json({ error: "internal_error" });

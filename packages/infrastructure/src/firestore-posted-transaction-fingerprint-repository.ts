@@ -13,14 +13,23 @@ export class FirestorePostedTransactionFingerprintReadRepository implements Post
   async listForAccount(accountId: string): Promise<ReadonlyArray<string>> {
     ensureFirebaseApp();
     const db = getFirestore();
-    const snapshot = await db
+
+    const postedSnapshot = await db
       .collection("postedTransactions")
       .where("accountId", "==", accountId)
       .select("fingerprint")
       .get();
 
-    return snapshot.docs
+    const importedSnapshot = await db
+      .collection("importedTransactions")
+      .where("accountId", "==", accountId)
+      .select("fingerprint")
+      .get();
+
+    const fingerprints = [...postedSnapshot.docs, ...importedSnapshot.docs]
       .map((doc: QueryDocumentSnapshot) => doc.get("fingerprint"))
       .filter((value: unknown): value is string => typeof value === "string");
+
+    return [...new Set(fingerprints)];
   }
 }
