@@ -1,9 +1,17 @@
 import { createApp } from "./app.js";
+import { loadConfig } from "../../../packages/shared/src/config.js";
+import { createLogger } from "../../../packages/shared/src/logger.js";
 
-const PORT = Number.parseInt(process.env.PORT ?? "8080", 10);
+const config = loadConfig();
+const logger = createLogger({ service: "finance-agent-api" });
+
+const PORT = config.PORT;
 
 const app = createApp();
 
 app.listen(PORT, () => {
-  console.log(`finance-agent-api listening on port ${PORT}`);
+  logger.info("server.started", {
+    port: PORT,
+    environment: config.NODE_ENV
+  });
 });
