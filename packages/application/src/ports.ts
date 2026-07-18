@@ -5,6 +5,12 @@ import {
   type StatementImportPreview,
   type StatementImportStatus
 } from "../../domain/src/statement-import.js";
+import {
+  type CategorizableTransaction,
+  type CategorizationRule,
+  type CategorizationSource,
+  type Category
+} from "../../domain/src/transaction-categorization.js";
 
 export type ApprovalRequest = {
   readonly operation: "create-journal-entry";
@@ -105,5 +111,63 @@ export interface AuditTrailRepository {
     action: string;
     timestamp: string;
     metadata: Record<string, string | number | boolean>;
+  }): Promise<void>;
+}
+
+export type TransactionCategorizationUpdate = {
+  readonly category: Category;
+  readonly source: CategorizationSource;
+  readonly confidence: number;
+  readonly explanation: string;
+  readonly ruleId?: string;
+  readonly confirmed: boolean;
+};
+
+export interface TransactionRepository {
+  findByIdForUser(input: {
+    transactionId: string;
+    ownerUserId: string;
+  }): Promise<CategorizableTransaction | null>;
+  listByImportIdForUser(input: {
+    importId: string;
+    ownerUserId: string;
+  }): Promise<ReadonlyArray<CategorizableTransaction>>;
+  saveCategorization(input: {
+    transactionId: string;
+    ownerUserId: string;
+    update: TransactionCategorizationUpdate;
+  }): Promise<void>;
+}
+
+export interface CategorizationRuleRepository {
+  listByOwnerUserId(ownerUserId: string): Promise<ReadonlyArray<CategorizationRule>>;
+  upsert(rule: CategorizationRule): Promise<void>;
+}
+
+export interface CategorySuggestionProvider {
+  suggest(input: {
+    transaction: CategorizableTransaction;
+    allowedCategories: ReadonlyArray<Category>;
+  }): Promise<{
+    category: Category;
+    confidence: number;
+    rationale: string;
+  } | null>;
+}
+
+export interface CategorizationIdempotencyRepository {
+  findResult(input: {
+    operation: string;
+    targetId: string;
+    actorId: string;
+    idempotencyKey: string;
+  }): Promise<Record<string, unknown> | null>;
+  saveResult(input: {
+    operation: string;
+    targetId: string;
+    actorId: string;
+    idempotencyKey: string;
+    createdAt: string;
+    response: Record<string, unknown>;
   }): Promise<void>;
 }

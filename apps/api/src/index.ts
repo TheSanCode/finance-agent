@@ -1,18 +1,27 @@
 import { createApp, createAppDependencies } from "./app.js";
 import {
   ApproveStatementImportUseCase,
+  CategorizeImportedStatementUseCase,
+  CategorizeTransactionUseCase,
+  ConfirmTransactionCategoryUseCase,
+  CorrectTransactionCategoryUseCase,
   CreateStatementImportPreviewUseCase,
   GetCreditCardSummaryUseCase,
-  GetStatementImportPreviewUseCase
+  GetStatementImportPreviewUseCase,
+  SuggestTransactionCategoryUseCase
 } from "../../../packages/application/src/index.js";
 import {
   CsvStatementExtractor,
   FirebaseAuthService,
   FirestoreAuditTrailRepository,
+  FirestoreCategorizationIdempotencyRepository,
+  FirestoreCategorizationRuleRepository,
   FirestoreCreditCardAccountReadRepository,
   FirestoreImportedTransactionRepository,
   FirestorePostedTransactionFingerprintReadRepository,
-  FirestoreStatementImportPreviewRepository
+  FirestoreStatementImportPreviewRepository,
+  FirestoreTransactionRepository,
+  GeminiCategorySuggestionProvider
 } from "../../../packages/infrastructure/src/index.js";
 import { loadConfig } from "../../../packages/shared/src/config.js";
 import { createLogger } from "../../../packages/shared/src/logger.js";
@@ -26,6 +35,10 @@ const previewRepository = new FirestoreStatementImportPreviewRepository();
 const postedFingerprintRepository = new FirestorePostedTransactionFingerprintReadRepository();
 const importedTransactionRepository = new FirestoreImportedTransactionRepository();
 const auditTrailRepository = new FirestoreAuditTrailRepository();
+const transactionRepository = new FirestoreTransactionRepository();
+const categorizationRuleRepository = new FirestoreCategorizationRuleRepository();
+const categorySuggestionProvider = new GeminiCategorySuggestionProvider();
+const categorizationIdempotencyRepository = new FirestoreCategorizationIdempotencyRepository();
 
 const getCreditCardSummaryUseCase = new GetCreditCardSummaryUseCase(accountReadRepository);
 const createStatementImportPreviewUseCase = new CreateStatementImportPreviewUseCase({
@@ -42,6 +55,35 @@ const approveStatementImportUseCase = new ApproveStatementImportUseCase({
   importedTransactionRepository,
   auditTrailRepository
 });
+const categorizeTransactionUseCase = new CategorizeTransactionUseCase({
+  transactionRepository,
+  categorizationRuleRepository,
+  idempotencyRepository: categorizationIdempotencyRepository,
+  auditTrailRepository
+});
+const suggestTransactionCategoryUseCase = new SuggestTransactionCategoryUseCase({
+  transactionRepository,
+  categorizationRuleRepository,
+  categorySuggestionProvider,
+  idempotencyRepository: categorizationIdempotencyRepository,
+  auditTrailRepository
+});
+const confirmTransactionCategoryUseCase = new ConfirmTransactionCategoryUseCase({
+  transactionRepository,
+  idempotencyRepository: categorizationIdempotencyRepository,
+  auditTrailRepository
+});
+const correctTransactionCategoryUseCase = new CorrectTransactionCategoryUseCase({
+  transactionRepository,
+  categorizationRuleRepository,
+  idempotencyRepository: categorizationIdempotencyRepository,
+  auditTrailRepository
+});
+const categorizeImportedStatementUseCase = new CategorizeImportedStatementUseCase({
+  transactionRepository,
+  idempotencyRepository: categorizationIdempotencyRepository,
+  categorizeTransactionUseCase
+});
 
 const PORT = config.PORT;
 
@@ -52,6 +94,11 @@ const app = createApp(
     createStatementImportPreviewUseCase,
     getStatementImportPreviewUseCase,
     approveStatementImportUseCase,
+    categorizeTransactionUseCase,
+    suggestTransactionCategoryUseCase,
+    confirmTransactionCategoryUseCase,
+    correctTransactionCategoryUseCase,
+    categorizeImportedStatementUseCase,
     statementMaxFileSizeBytes: config.STATEMENT_MAX_FILE_SIZE_BYTES,
     logger
   })

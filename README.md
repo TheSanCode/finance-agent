@@ -122,6 +122,49 @@ Approval behavior:
 - Deterministic duplicate detection by stable fingerprint.
 - No Gemini is used for arithmetic, totals, duplicate detection, date parsing, or money conversion.
 
+Transaction categorization endpoints:
+
+POST /v1/transactions/:transactionId/categorize
+
+- Deterministic-first categorization using user/system/merchant rules.
+- Preserves existing user-confirmed category.
+- Requires body with `idempotencyKey`.
+
+POST /v1/transactions/:transactionId/category-suggestion
+
+- Optional AI suggestion path through `CategorySuggestionProvider`.
+- Deterministic rules are always evaluated first; Gemini is only queried when no deterministic match is found.
+- Suggestions never auto-overwrite user-confirmed category.
+- Requires body with `idempotencyKey`.
+
+POST /v1/transactions/:transactionId/category-confirmation
+
+Body example for confirm:
+
+```json
+{
+  "idempotencyKey": "cat-confirm-unique-key",
+  "category": "TRANSPORTATION"
+}
+```
+
+Body example for correction and rule learning:
+
+```json
+{
+  "idempotencyKey": "cat-correct-unique-key",
+  "category": "FUEL",
+  "corrected": true,
+  "learnMerchantRule": true
+}
+```
+
+POST /v1/statement-imports/:importId/categorize
+
+- Batch deterministic categorization for imported transactions by import ID.
+- Requires body with `idempotencyKey`.
+- Repeated calls with same key return the same result without additional business side effects.
+
 ## Cloud Run Baseline
 
 - Containerized Node.js API with PORT support.

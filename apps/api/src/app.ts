@@ -1,6 +1,6 @@
 import express, { type Express } from "express";
 import multer from "multer";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { ZodError } from "zod";
 import { z } from "zod";
 
@@ -12,12 +12,18 @@ import {
 } from "../../../packages/application/src/index.js";
 import {
   type ApproveStatementImportUseCase,
+  type CategorizeImportedStatementUseCase,
+  type CategorizeTransactionUseCase,
+  type ConfirmTransactionCategoryUseCase,
+  type CorrectTransactionCategoryUseCase,
   type CreateStatementImportPreviewUseCase,
-  type GetStatementImportPreviewUseCase
+  type GetStatementImportPreviewUseCase,
+  type SuggestTransactionCategoryUseCase
 } from "../../../packages/application/src/index.js";
 import { type GetCreditCardSummaryUseCase } from "../../../packages/application/src/index.js";
 import { createLogger } from "../../../packages/shared/src/logger.js";
 import { type Logger } from "../../../packages/shared/src/logger.js";
+import { categorySchema } from "../../../packages/domain/src/index.js";
 
 type AuthService = {
   verifyBearerToken: (token: string) => Promise<{ uid: string }>;
@@ -29,6 +35,11 @@ type AppDependencies = {
   createStatementImportPreviewUseCase: CreateStatementImportPreviewUseCase;
   getStatementImportPreviewUseCase: GetStatementImportPreviewUseCase;
   approveStatementImportUseCase: ApproveStatementImportUseCase;
+  categorizeTransactionUseCase?: CategorizeTransactionUseCase;
+  suggestTransactionCategoryUseCase?: SuggestTransactionCategoryUseCase;
+  confirmTransactionCategoryUseCase?: ConfirmTransactionCategoryUseCase;
+  correctTransactionCategoryUseCase?: CorrectTransactionCategoryUseCase;
+  categorizeImportedStatementUseCase?: CategorizeImportedStatementUseCase;
   statementMaxFileSizeBytes: number;
   logger: Logger;
 };
@@ -42,10 +53,32 @@ const previewParamsSchema = z.object({
   previewId: z.string().min(1)
 });
 
+const transactionParamsSchema = z.object({
+  transactionId: z.string().min(1)
+});
+
+const importParamsSchema = z.object({
+  importId: z.string().min(1)
+});
+
 const approveBodySchema = z.object({
   idempotencyKey: z.string().min(8),
   approvedFingerprints: z.array(z.string().min(1)).optional()
 });
+
+const categoryConfirmationBodySchema = z.object({
+  idempotencyKey: z.string().min(8),
+  category: categorySchema,
+  corrected: z.boolean().optional(),
+  learnMerchantRule: z.boolean().optional()
+});
+
+const idempotencyBodySchema = z.object({
+  idempotencyKey: z.string().min(8)
+});
+
+const toOpaqueReference = (value: string): string =>
+  createHash("sha256").update(value).digest("hex").slice(0, 12);
 
 const toResponsePreview = (
   preview: Awaited<ReturnType<GetStatementImportPreviewUseCase["execute"]>>
@@ -225,6 +258,137 @@ export const createApp = (dependencies: AppDependencies): Express => {
     }
   );
 
+  app.post("/v1/transactions/:transactionId/categorize", async (req, res, next) => {
+    try {
+      if (!dependencies.categorizeTransactionUseCase) {
+        res.status(404).json({ error: "not_found", path: req.path });
+        return;
+      }
+
+      const requestId = String(res.locals.requestId ?? "unknown");
+      const token = parseBearerToken(req.header("authorization"));
+      const authUser = await dependencies.authService.verifyBearerToken(token);
+      const params = transactionParamsSchema.parse(req.params);
+      const body = idempotencyBodySchema.parse(req.body);
+
+      const result = await dependencies.categorizeTransactionUseCase.execute({
+        transactionId: params.transactionId,
+        authenticatedUserId: authUser.uid,
+        idempotencyKey: body.idempotencyKey
+      });
+
+      logger.info("transaction.categorized", {
+        requestId,
+        recordRef: toOpaqueReference(params.transactionId),
+        source: result.source
+      });
+
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/v1/transactions/:transactionId/category-suggestion", async (req, res, next) => {
+    try {
+      if (!dependencies.suggestTransactionCategoryUseCase) {
+        res.status(404).json({ error: "not_found", path: req.path });
+        return;
+      }
+
+      const requestId = String(res.locals.requestId ?? "unknown");
+      const token = parseBearerToken(req.header("authorization"));
+      const authUser = await dependencies.authService.verifyBearerToken(token);
+      const params = transactionParamsSchema.parse(req.params);
+      const body = idempotencyBodySchema.parse(req.body);
+
+      const result = await dependencies.suggestTransactionCategoryUseCase.execute({
+        transactionId: params.transactionId,
+        authenticatedUserId: authUser.uid,
+        idempotencyKey: body.idempotencyKey
+      });
+
+      logger.info("transaction.category_suggested", {
+        requestId,
+        recordRef: toOpaqueReference(params.transactionId),
+        deterministicMatched: result.deterministicResult ? "yes" : "no",
+        suggested: result.suggestion ? "yes" : "no"
+      });
+
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/v1/transactions/:transactionId/category-confirmation", async (req, res, next) => {
+    try {
+      const params = transactionParamsSchema.parse(req.params);
+      const body = categoryConfirmationBodySchema.parse(req.body);
+
+      const token = parseBearerToken(req.header("authorization"));
+      const authUser = await dependencies.authService.verifyBearerToken(token);
+
+      if (body.corrected) {
+        if (!dependencies.correctTransactionCategoryUseCase) {
+          res.status(404).json({ error: "not_found", path: req.path });
+          return;
+        }
+
+        const result = await dependencies.correctTransactionCategoryUseCase.execute({
+          transactionId: params.transactionId,
+          authenticatedUserId: authUser.uid,
+          idempotencyKey: body.idempotencyKey,
+          correctedCategory: body.category,
+          learnMerchantRule: body.learnMerchantRule ?? true
+        });
+
+        res.status(200).json(result);
+        return;
+      }
+
+      if (!dependencies.confirmTransactionCategoryUseCase) {
+        res.status(404).json({ error: "not_found", path: req.path });
+        return;
+      }
+
+      const result = await dependencies.confirmTransactionCategoryUseCase.execute({
+        transactionId: params.transactionId,
+        authenticatedUserId: authUser.uid,
+        idempotencyKey: body.idempotencyKey,
+        category: body.category
+      });
+
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/v1/statement-imports/:importId/categorize", async (req, res, next) => {
+    try {
+      if (!dependencies.categorizeImportedStatementUseCase) {
+        res.status(404).json({ error: "not_found", path: req.path });
+        return;
+      }
+
+      const token = parseBearerToken(req.header("authorization"));
+      const authUser = await dependencies.authService.verifyBearerToken(token);
+      const params = importParamsSchema.parse(req.params);
+      const body = idempotencyBodySchema.parse(req.body);
+
+      const result = await dependencies.categorizeImportedStatementUseCase.execute({
+        importId: params.importId,
+        authenticatedUserId: authUser.uid,
+        idempotencyKey: body.idempotencyKey
+      });
+
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.use((req, res) => {
     res.status(404).json({ error: "not_found", path: req.path });
   });
@@ -300,6 +464,11 @@ export const createAppDependencies = (input: {
   createStatementImportPreviewUseCase: CreateStatementImportPreviewUseCase;
   getStatementImportPreviewUseCase: GetStatementImportPreviewUseCase;
   approveStatementImportUseCase: ApproveStatementImportUseCase;
+  categorizeTransactionUseCase?: CategorizeTransactionUseCase;
+  suggestTransactionCategoryUseCase?: SuggestTransactionCategoryUseCase;
+  confirmTransactionCategoryUseCase?: ConfirmTransactionCategoryUseCase;
+  correctTransactionCategoryUseCase?: CorrectTransactionCategoryUseCase;
+  categorizeImportedStatementUseCase?: CategorizeImportedStatementUseCase;
   statementMaxFileSizeBytes: number;
   logger?: Logger;
 }): AppDependencies => ({

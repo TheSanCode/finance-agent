@@ -5,3 +5,8 @@ export * from "./get-credit-card-summary.js";
 export * from "./create-statement-import-preview.js";
 export * from "./get-statement-import-preview.js";
 export * from "./approve-statement-import.js";
+export * from "./categorize-transaction.js";
+export * from "./suggest-transaction-category.js";
+export * from "./confirm-transaction-category.js";
+export * from "./correct-transaction-category.js";
+export * from "./categorize-imported-statement.js";
