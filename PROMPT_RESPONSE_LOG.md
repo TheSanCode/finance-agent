@@ -159,3 +159,27 @@
 - AI Response: "Inspected statement import and transaction categorization models, confirmed existing repository/authorization/audit/idempotency patterns are already implemented on feature/transaction-categorization, and no additional code changes were required at this step."
 - Command Used: git branch --show-current; read_file(statement-import.ts); read_file(transaction-categorization.ts); read_file(application ports.ts); git status --short
 - Tools Used: run_in_terminal, read_file, multi_tool_use.parallel, apply_patch
+
+## Entry 21
+
+- Date: 2026-07-18
+- Human Prompt: "npm run format:check; npm run lint; npm run typecheck; npm test; npm run build full validation"
+- AI Response: "Executed all five validation commands in order and all checks passed, including tests (14 files, 34 tests) and build."
+- Command Used: npm run format:check; npm run lint; npm run typecheck; npm test; npm run build
+- Tools Used: run_in_terminal, read_file, multi_tool_use.parallel, apply_patch
+
+## Entry 22
+
+- Date: 2026-07-18
+- Human Prompt: "add below command to run a dependency-boundary search"
+- AI Response: "Added npm script `search:dependency-boundary` to run a Firestore dependency-boundary search over domain/application/agent layers, documented it in README, and validated the command execution."
+- Command Used: npm run format:check; npm run format; npm run search:dependency-boundary
+- Tools Used: read_file, grep_search, apply_patch, run_in_terminal, multi_tool_use.parallel
+
+## Entry 23
+
+- Date: 2026-07-18
+- Human Prompt: "commit"
+- AI Response: "Staged pending README/package/log updates and created a commit on feature/transaction-categorization."
+- Command Used: git status --short; git branch --show-current; git add -A; $env:SKIP_COMMENT_CHECK=1; git commit -m "Add dependency boundary search command"; Remove-Item Env:SKIP_COMMENT_CHECK -ErrorAction SilentlyContinue
+- Tools Used: run_in_terminal, read_file, apply_patch, multi_tool_use.parallel

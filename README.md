@@ -51,6 +51,10 @@ This repository currently provides architecture, safety boundaries, configuratio
    npm run typecheck
    npm run test
 
+3. Run dependency-boundary search
+
+npm run search:dependency-boundary
+
 3. Run API locally
 
    npm run dev

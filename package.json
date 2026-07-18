@@ -14,6 +14,7 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsx apps/api/src/index.ts",
     "start": "node dist/apps/api/src/index.js",
+    "search:dependency-boundary": "git grep -nE \"(firebase-admin|getFirestore|Firestore)\" packages/domain packages/application packages/agent || echo \"No forbidden Firestore dependencies found in domain/application/agent\"",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint . --ext .ts",
