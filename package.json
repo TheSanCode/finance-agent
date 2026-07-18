@@ -27,7 +27,7 @@
     "express": "^4.21.2",
     "firebase-admin": "^12.7.0",
     "genkit": "^1.9.0",
-    "multer": "^1.4.5-lts.1",
+    "multer": "^2.2.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {
