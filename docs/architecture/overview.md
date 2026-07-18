@@ -29,6 +29,17 @@
 - API logs operation outcome without financial amounts.
 - Genkit/Gemini is not part of any financial calculation path.
 
+## Vertical Slice: Statement Import Preview And Approval
+
+- Upload endpoint validates auth, ownership, file type, and file size.
+- Statement extraction is behind application `StatementExtractor` port.
+- Transactions are normalized into domain objects with integer minor units.
+- Duplicate detection uses deterministic stable fingerprints.
+- Totals are validated when provided by statement source.
+- Preview is persisted as `PENDING_APPROVAL`; final transactions are persisted only on explicit approval.
+- Approval requires idempotency key and writes audit trail events.
+- Genkit/Gemini is not used in calculations, duplicate detection, date parsing, or money conversion.
+
 ## Agent Safety Model
 
 - The orchestrator can call only pre-registered tools.
