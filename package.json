@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.9.0",
-    "csv-parse": "^5.5.6",
+    "csv-parse": "^7.0.2",
     "express": "^4.21.2",
     "firebase-admin": "^12.7.0",
     "genkit": "^1.9.0",
